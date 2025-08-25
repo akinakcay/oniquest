@@ -1,0 +1,8 @@
+body {background:#0b0f1a;color:#e6e9ef;font-family:sans-serif;margin:0}
+.topbar,.bottombar{padding:12px;background:#101625;color:white;display:flex;justify-content:space-between}
+button{padding:10px;border-radius:10px;border:none;font-weight:bold}
+button.ghost{background:transparent;color:#c8d1f3;border:1px solid #334166}
+button.success{background:#22c55e;color:white}
+button.warn{background:#f0434a;color:white}
+.hidden{display:none}
+#screen-container{padding:16px}

@@ -1,0 +1,190 @@
+// OniQuest – 2 Kişilik, Aynı Cihaz
+const $ = (sel) => document.querySelector(sel);
+const container = $("#screen-container");
+
+const STORAGE_KEY = "oniquest_v1";
+const state = {
+  gold: 0,
+  round: null, // aktif oyun turu
+};
+
+// Veriyi yükle
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      state.gold = data.gold ?? 0;
+    }
+  } catch {}
+  updateWallet();
+}
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ gold: state.gold }));
+  updateWallet();
+}
+
+function updateWallet() {
+  $("#gold").textContent = state.gold;
+}
+
+function screenHome() {
+  container.innerHTML = `
+    <h2>OniQuest 👋</h2>
+    <p>İki kişi, tek cihaz. 20 soruda nesneyi bul!</p>
+    <button id="btnLocal" class="success">Aynı Cihazda Oyna</button>
+    <hr>
+    <p><b>Kurallar:</b></p>
+    <ul>
+      <li>Oyuncu A nesne tutar</li>
+      <li>Oyuncu B max 20 soru sorar</li>
+      <li>Cevap: Evet / Hayır / Bilmiyorum</li>
+      <li>B bilmiyorsa soru hakkı düşmez</li>
+      <li>B doğru tahmin ederse kazanır, yoksa A kazanır</li>
+    </ul>
+  `;
+  $("#btnLocal").onclick = () => screenRoleSelect();
+}
+
+function screenRoleSelect() {
+  container.innerHTML = `
+    <h3>Rolleri Seç</h3>
+    <button id="asHolder">Ben Nesneyi Tutayım (A)</button>
+    <button id="asGuesser">Ben Tahmin Edeyim (B)</button>
+  `;
+  $("#asHolder").onclick = () => initRound("A");
+  $("#asGuesser").onclick = () => initRound("B");
+}
+
+function initRound(role) {
+  state.round = {
+    role, // "A" = nesneyi tutan, "B" = soran
+    questionsUsed: 0,
+    maxQuestions: 20,
+    history: [],
+    finished: false,
+    winner: null,
+  };
+  if (role === "A") screenAReady();
+  else screenBAsk();
+}
+
+function screenAReady() {
+  container.innerHTML = `
+    <h3>Oyuncu A: Nesneni Düşün</h3>
+    <p>Hazır olunca cihazı B'ye ver</p>
+    <button id="ready" class="success">Hazırım</button>
+  `;
+  $("#ready").onclick = () => screenBAsk(true);
+}
+
+function screenBAsk() {
+  const r = state.round;
+  container.innerHTML = `
+    <h3>Oyuncu B: Sorunu Yaz</h3>
+    <p>Kalan hak: ${r.maxQuestions - r.questionsUsed}/20</p>
+    <input id="q" type="text" placeholder="Ör: Canlı mı?">
+    <button id="askBtn">Cevapla (A)</button>
+    <button id="guessBtn" class="ghost">Tahmin Et</button>
+    <hr>
+    <h4>Geçmiş</h4>
+    <ul id="history"></ul>
+  `;
+  $("#askBtn").onclick = () => {
+    const q = $("#q").value.trim();
+    if (!q) return;
+    r.pendingQ = q;
+    screenAnswerForA();
+  };
+  $("#guessBtn").onclick = () => screenGuess();
+  renderHistory();
+}
+
+function screenAnswerForA() {
+  const r = state.round;
+  container.innerHTML = `
+    <h3>Oyuncu A: Cevap Ver</h3>
+    <p><b>Soru:</b> ${r.pendingQ}</p>
+    <button id="yesBtn" class="success">Evet</button>
+    <button id="noBtn" class="warn">Hayır</button>
+    <button id="idkBtn" class="ghost">Bilmiyorum</button>
+  `;
+  $("#yesBtn").onclick = () => answerFromA("Evet");
+  $("#noBtn").onclick = () => answerFromA("Hayır");
+  $("#idkBtn").onclick = () => answerFromA("Bilmiyorum");
+}
+
+function answerFromA(ans) {
+  const r = state.round;
+  r.history.push({ q: r.pendingQ, a: ans });
+  if (ans !== "Bilmiyorum") r.questionsUsed++;
+  r.pendingQ = null;
+  if (r.questionsUsed >= r.maxQuestions) finish("A");
+  else screenBAsk();
+}
+
+function screenGuess() {
+  container.innerHTML = `
+    <h3>Tahminin Ne?</h3>
+    <input id="guess" type="text" placeholder="Nesneyi yaz...">
+    <button id="confirmGuess" class="success">Onayla</button>
+    <button id="back" class="ghost">Geri</button>
+    <p>(Doğru mu yanlış mı olduğunu Oyuncu A söyleyecek)</p>
+  `;
+  $("#confirmGuess").onclick = () => {
+    const g = $("#guess").value.trim();
+    if (!g) return;
+    screenConfirmByA(g);
+  };
+  $("#back").onclick = () => screenBAsk();
+}
+
+function screenConfirmByA(guess) {
+  container.innerHTML = `
+    <h3>Oyuncu A: Doğru mu?</h3>
+    <p>B'nin tahmini: <b>${guess}</b></p>
+    <button id="correct" class="success">Evet</button>
+    <button id="wrong" class="warn">Hayır</button>
+  `;
+  $("#correct").onclick = () => finish("B");
+  $("#wrong").onclick = () => {
+    state.round.questionsUsed++;
+    if (state.round.questionsUsed >= state.round.maxQuestions) finish("A");
+    else screenBAsk();
+  };
+}
+
+function finish(winner) {
+  const r = state.round;
+  r.finished = true;
+  r.winner = winner;
+  const used = r.questionsUsed;
+  const base = Math.max(0, 20 - used) * 5;
+  const bonus = 10;
+  const earned = base + bonus;
+  state.gold += earned;
+  save();
+  container.innerHTML = `
+    <h2>${winner === "B" ? "B Bildi 🎉" : "A Kazandı ⏳"}</h2>
+    <p>Kullanılan soru: ${used}</p>
+    <p>Kazanç: ${earned} ⦿ altın</p>
+    <button id="again" class="success">Tekrar Oyna</button>
+    <button id="home" class="ghost">Ana Menü</button>
+    <hr>
+    <h4>Soru Geçmişi</h4>
+    <ul>${r.history.map(h=>`<li><b>S:</b> ${h.q} — <b>Y:</b> ${h.a}</li>`).join("")}</ul>
+  `;
+  $("#again").onclick = () => screenRoleSelect();
+  $("#home").onclick = () => screenHome();
+}
+
+function renderHistory() {
+  const r = state.round;
+  const ul = document.querySelector("#history");
+  if (!ul) return;
+  ul.innerHTML = r.history.map((h,i)=>`<li>${i+1}. S: ${h.q} — Y: ${h.a}</li>`).join("");
+}
+
+load();
+screenHome();

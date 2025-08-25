@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>OniQuest</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <h1>OniQuest</h1>
+      <div class="wallet"><span id="gold">0</span> ⦿</div>
+    </header>
+    <main id="screen-container"></main>
+    <footer class="bottombar">
+      <button id="installBtn" class="ghost hidden">Uygulamayı Kur</button>
+      <a href="#" id="resetData" class="ghost">Sıfırla</a>
+    </footer>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
